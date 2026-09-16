@@ -7,6 +7,7 @@ Flutter client for library staff.
 - **Phase 14** — QR scanning via `mobile_scanner`, `GET /copies/by-qr/:token` lookup, copy/book details screen (manual token entry for simulators)
 - **Phase 15** — online sale checkout: Confirm sale → Sale completed; Sales tab lists history + KPIs via `POST/GET /api/v1/sales`
 - **Phase 16** — mobile stock receiving: inbound shipment list, Review → Verify → Confirm stepper, discrepancy flags, and receipt confirmation
+- **Phase 17** — Hive offline database: pending sale/sale-item storage, copy cache, inventory snapshots, sync-state transitions, and Riverpod repository access
 
 ## Run
 
