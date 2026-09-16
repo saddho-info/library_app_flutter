@@ -17,8 +17,13 @@ Flutter client for library staff.
 
 ```bash
 flutter run
-# Android emulator talking to host machine:
-flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000
+```
+
+Android emulators automatically use `http://10.0.2.2:3000` (host machine). Override when needed:
+
+```bash
+# Physical device on the same LAN (replace with your Mac's IP):
+flutter run --dart-define=API_BASE_URL=http://192.168.x.x:3000
 ```
 
 Demo library account: `walt.e@example.net` / `ChangeMe123!`
