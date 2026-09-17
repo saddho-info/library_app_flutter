@@ -76,8 +76,8 @@ class Sale {
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
       idempotencyKey: json['idempotencyKey'] as String?,
-      itemCount: json['itemCount'] as int? ??
-          (rawItems is List ? rawItems.length : 0),
+      itemCount:
+          json['itemCount'] as int? ?? (rawItems is List ? rawItems.length : 0),
       library: json['library'] is Map<String, dynamic>
           ? SaleLibrary.fromJson(json['library'] as Map<String, dynamic>)
           : null,
@@ -246,11 +246,7 @@ class SaleCopy {
 }
 
 class SaleLibrary {
-  const SaleLibrary({
-    required this.id,
-    required this.name,
-    required this.slug,
-  });
+  const SaleLibrary({required this.id, required this.name, required this.slug});
 
   final String id;
   final String name;
@@ -303,10 +299,7 @@ class PaginatedSales {
     final raw = json['data'];
     return PaginatedSales(
       data: raw is List
-          ? raw
-                .whereType<Map<String, dynamic>>()
-                .map(Sale.fromJson)
-                .toList()
+          ? raw.whereType<Map<String, dynamic>>().map(Sale.fromJson).toList()
           : const <Sale>[],
       meta: PaginationMeta.fromJson(
         json['meta'] is Map<String, dynamic>

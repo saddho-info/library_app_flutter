@@ -7,8 +7,7 @@ final salesRepositoryProvider = Provider<SalesRepository>((ref) {
   return ApiSalesRepository(apiClient: ref.watch(apiClientProvider));
 });
 
-final salesListProvider =
-    FutureProvider.autoDispose<PaginatedSales>((ref) {
+final salesListProvider = FutureProvider.autoDispose<PaginatedSales>((ref) {
   return ref.watch(salesRepositoryProvider).listSales();
 });
 

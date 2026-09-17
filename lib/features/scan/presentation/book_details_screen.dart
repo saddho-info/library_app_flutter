@@ -88,16 +88,16 @@ class _CopyDetailsBody extends StatelessWidget {
           ],
           Text(
             copy.displayTitle,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 6),
           Text(
             copy.authorsLabel,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppColors.mutedForeground,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: AppColors.mutedForeground),
           ),
           const SizedBox(height: 16),
           Align(
@@ -139,9 +139,9 @@ class _CopyDetailsBody extends StatelessWidget {
                 copy.status == 'SOLD'
                     ? 'This copy is already sold and cannot be sold again.'
                     : 'This copy is not in library stock yet, so it cannot be sold.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.warning,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppColors.warning),
               ),
             ),
           OutlinedButton(
@@ -234,9 +234,9 @@ class _DetailRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -271,17 +271,17 @@ class _ErrorPane extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             'Copy not found',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.mutedForeground,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.mutedForeground),
           ),
           const SizedBox(height: 24),
           FilledButton(onPressed: onRetry, child: const Text('Try again')),

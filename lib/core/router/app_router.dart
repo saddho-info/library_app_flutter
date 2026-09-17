@@ -17,6 +17,7 @@ import 'package:library_app/features/shell/presentation/app_shell.dart';
 import 'package:library_app/features/stock/presentation/receipt_detail_screen.dart';
 import 'package:library_app/features/stock/presentation/receive_shipment_screen.dart';
 import 'package:library_app/features/stock/presentation/stock_screen.dart';
+import 'package:library_app/features/sync/presentation/sync_placeholder.dart';
 
 /// Notifies [GoRouter] when auth session state changes.
 class _AuthRefreshListenable extends ChangeNotifier {
@@ -168,6 +169,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'notifications',
                     builder: (context, state) => const NotificationsScreen(),
+                  ),
+                  GoRoute(
+                    path: 'sync',
+                    builder: (context, state) => const SyncScreen(),
                   ),
                 ],
               ),

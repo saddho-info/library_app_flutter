@@ -115,11 +115,13 @@ class _ReceiveShipmentScreenState extends ConsumerState<ReceiveShipmentScreen> {
       if (error.statusCode == null) {
         if (mounted) context.go('/more/sync');
       } else {
-        await ref.read(offlineRepositoryProvider).markReceiptFailed(
-          localReceipt.id,
-          code: error.code ?? 'REJECTED',
-          message: error.message,
-        );
+        await ref
+            .read(offlineRepositoryProvider)
+            .markReceiptFailed(
+              localReceipt.id,
+              code: error.code ?? 'REJECTED',
+              message: error.message,
+            );
         if (mounted) setState(() => _error = error.message);
       }
     } finally {

@@ -66,7 +66,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 8),
                     const Text(
                       'Use your library account to receive stock and record sales.',
-                      style: TextStyle(color: AppColors.muted),
+                      style: TextStyle(color: AppColors.mutedForeground),
                     ),
                     const SizedBox(height: 24),
                     TextFormField(

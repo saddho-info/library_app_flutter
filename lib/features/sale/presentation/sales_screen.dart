@@ -41,11 +41,7 @@ class SalesScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(24),
             children: [
               const SizedBox(height: 80),
-              Icon(
-                Icons.error_outline,
-                size: 48,
-                color: AppColors.destructive,
-              ),
+              Icon(Icons.error_outline, size: 48, color: AppColors.destructive),
               const SizedBox(height: 16),
               Text(
                 error is SalesException
@@ -138,17 +134,11 @@ class _SummaryRow extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: _KpiCard(
-            label: 'Sales',
-            value: '${summary.saleCount}',
-          ),
+          child: _KpiCard(label: 'Sales', value: '${summary.saleCount}'),
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: _KpiCard(
-            label: 'Items',
-            value: '${summary.itemCount}',
-          ),
+          child: _KpiCard(label: 'Items', value: '${summary.itemCount}'),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -187,9 +177,9 @@ class _KpiCard extends StatelessWidget {
               value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
           ],
         ),

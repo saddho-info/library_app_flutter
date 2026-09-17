@@ -77,6 +77,49 @@ void main() {
     expect(synced?.syncErrorCode, isNull);
   });
 
+  test('stores a pending receipt and updates its sync lifecycle', () async {
+    final now = DateTime.utc(2026, 9, 16);
+    final receipt = LocalReceipt(
+      id: 'receipt-1',
+      libraryId: 'library-1',
+      actorUserId: 'user-1',
+      idempotencyKey: 'receipt-key-1',
+      createdAt: now,
+      updatedAt: now,
+      request: const {
+        'distributionId': 'distribution-1',
+        'confirm': true,
+        'items': [
+          {'copyId': 'copy-1', 'received': true, 'discrepancy': 'NONE'},
+        ],
+      },
+    );
+
+    await repository.saveReceipt(receipt);
+    expect(
+      (await repository.getReceipts(status: LocalSyncStatus.pending)).single.id,
+      receipt.id,
+    );
+
+    await repository.markReceiptFailed(
+      receipt.id,
+      code: 'STALE_DATA',
+      message: 'Refresh required',
+    );
+    var stored =
+        (await repository.getReceipts(status: LocalSyncStatus.failed)).single;
+    expect(stored.retryCount, 1);
+
+    await repository.markReceiptSynced(
+      receipt.id,
+      serverId: 'server-receipt-1',
+    );
+    stored =
+        (await repository.getReceipts(status: LocalSyncStatus.synced)).single;
+    expect(stored.serverId, 'server-receipt-1');
+    expect(stored.syncErrorCode, isNull);
+  });
+
   test('caches copies by id and QR token', () async {
     final now = DateTime.utc(2026, 9, 16);
     final copy = BookCopy(

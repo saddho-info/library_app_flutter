@@ -55,9 +55,9 @@ class SaleDetailScreen extends ConsumerWidget {
           children: [
             Text(
               sale.code,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 6),
             Text(
@@ -69,24 +69,21 @@ class SaleDetailScreen extends ConsumerWidget {
             const SizedBox(height: 20),
             Card(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Column(
                   children: [
                     _DetailRow(label: 'Total', value: sale.totalLabel),
-                    _DetailRow(
-                      label: 'Items',
-                      value: '${sale.itemCount}',
-                    ),
+                    _DetailRow(label: 'Items', value: '${sale.itemCount}'),
                     if (sale.actor != null)
                       _DetailRow(
                         label: 'Sold by',
                         value: sale.actor!.displayName,
                       ),
                     if (sale.library != null)
-                      _DetailRow(
-                        label: 'Library',
-                        value: sale.library!.name,
-                      ),
+                      _DetailRow(label: 'Library', value: sale.library!.name),
                     if (sale.notes != null && sale.notes!.isNotEmpty)
                       _DetailRow(label: 'Notes', value: sale.notes!),
                   ],
@@ -96,9 +93,9 @@ class SaleDetailScreen extends ConsumerWidget {
             const SizedBox(height: 24),
             Text(
               'Line items',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 12),
             ...sale.items.map(
@@ -174,9 +171,9 @@ class _DetailRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
             ),
           ),
         ],

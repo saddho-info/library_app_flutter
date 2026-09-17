@@ -3,11 +3,7 @@ import 'package:library_app/core/network/api_client.dart';
 import 'package:library_app/features/sale/domain/sale.dart';
 
 class SalesException implements Exception {
-  SalesException(
-    this.message, {
-    this.statusCode,
-    this.code,
-  });
+  SalesException(this.message, {this.statusCode, this.code});
 
   final String message;
   final int? statusCode;
@@ -29,10 +25,7 @@ class CreateSaleRequest {
     this.qrToken,
     this.unitPriceCents,
     this.notes,
-  }) : assert(
-         copyId != null || qrToken != null,
-         'Provide copyId or qrToken',
-       );
+  }) : assert(copyId != null || qrToken != null, 'Provide copyId or qrToken');
 
   final String idempotencyKey;
   final String? copyId;
@@ -70,9 +63,7 @@ class ApiSalesRepository implements SalesRepository {
           if (request.notes != null && request.notes!.trim().isNotEmpty)
             'notes': request.notes!.trim(),
         },
-        options: Options(
-          headers: {'Idempotency-Key': request.idempotencyKey},
-        ),
+        options: Options(headers: {'Idempotency-Key': request.idempotencyKey}),
       );
       final data = response.data;
       if (data == null) {
@@ -161,7 +152,8 @@ class ApiSalesRepository implements SalesRepository {
     } else if (status == 403) {
       message = 'You do not have permission to record sales.';
     } else if (error.type == DioExceptionType.connectionError) {
-      message = 'Unable to reach the server. Check your connection and try again.';
+      message =
+          'Unable to reach the server. Check your connection and try again.';
     }
 
     return SalesException(message, statusCode: status, code: code);

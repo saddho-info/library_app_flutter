@@ -284,6 +284,96 @@ class InventorySnapshot {
   }
 }
 
+class LocalReceipt {
+  const LocalReceipt({
+    required this.id,
+    required this.libraryId,
+    required this.actorUserId,
+    required this.idempotencyKey,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.request,
+    this.serverId,
+    this.syncStatus = LocalSyncStatus.pending,
+    this.syncErrorCode,
+    this.syncErrorMessage,
+    this.retryCount = 0,
+  });
+
+  final String id;
+  final String? serverId;
+  final String libraryId;
+  final String actorUserId;
+  final String idempotencyKey;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final LocalSyncStatus syncStatus;
+  final String? syncErrorCode;
+  final String? syncErrorMessage;
+  final int retryCount;
+  final Map<String, dynamic> request;
+
+  LocalReceipt copyWith({
+    String? serverId,
+    LocalSyncStatus? syncStatus,
+    String? syncErrorCode,
+    String? syncErrorMessage,
+    int? retryCount,
+    bool clearError = false,
+  }) => LocalReceipt(
+    id: id,
+    serverId: serverId ?? this.serverId,
+    libraryId: libraryId,
+    actorUserId: actorUserId,
+    idempotencyKey: idempotencyKey,
+    createdAt: createdAt,
+    updatedAt: DateTime.now().toUtc(),
+    request: request,
+    syncStatus: syncStatus ?? this.syncStatus,
+    syncErrorCode: clearError ? null : syncErrorCode ?? this.syncErrorCode,
+    syncErrorMessage: clearError
+        ? null
+        : syncErrorMessage ?? this.syncErrorMessage,
+    retryCount: retryCount ?? this.retryCount,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'schemaVersion': 1,
+    'id': id,
+    'serverId': serverId,
+    'libraryId': libraryId,
+    'actorUserId': actorUserId,
+    'idempotencyKey': idempotencyKey,
+    'createdAt': createdAt.toUtc().toIso8601String(),
+    'updatedAt': updatedAt.toUtc().toIso8601String(),
+    'syncStatus': syncStatus.storageValue,
+    'syncErrorCode': syncErrorCode,
+    'syncErrorMessage': syncErrorMessage,
+    'retryCount': retryCount,
+    'request': request,
+  };
+
+  factory LocalReceipt.fromJson(Object? value) {
+    final json = _stringMap(value);
+    return LocalReceipt(
+      id: json['id'] as String,
+      serverId: json['serverId'] as String?,
+      libraryId: json['libraryId'] as String,
+      actorUserId: json['actorUserId'] as String,
+      idempotencyKey: json['idempotencyKey'] as String,
+      createdAt: _date(json['createdAt']),
+      updatedAt: _date(json['updatedAt']),
+      syncStatus: LocalSyncStatus.fromStorage(
+        json['syncStatus'] as String? ?? 'PENDING',
+      ),
+      syncErrorCode: json['syncErrorCode'] as String?,
+      syncErrorMessage: json['syncErrorMessage'] as String?,
+      retryCount: json['retryCount'] as int? ?? 0,
+      request: _stringMap(json['request']),
+    );
+  }
+}
+
 Map<String, dynamic> bookCopyToJson(BookCopy copy) => {
   'schemaVersion': 1,
   'id': copy.id,

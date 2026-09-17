@@ -3,9 +3,10 @@ import 'package:library_app/core/network/api_client.dart';
 import 'package:library_app/features/stock/domain/receiving.dart';
 
 class ReceivingException implements Exception {
-  const ReceivingException(this.message, {this.code});
+  const ReceivingException(this.message, {this.code, this.statusCode});
   final String message;
   final String? code;
+  final int? statusCode;
   @override
   String toString() => message;
 }
@@ -126,6 +127,10 @@ class ApiReceivingRepository implements ReceivingRepository {
       message =
           'Unable to reach the server. Check your connection and try again.';
     }
-    return ReceivingException(message, code: code);
+    return ReceivingException(
+      message,
+      code: code,
+      statusCode: error.response?.statusCode,
+    );
   }
 }

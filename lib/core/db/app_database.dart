@@ -10,6 +10,7 @@ class AppDatabase {
     required this.saleItems,
     required this.copyCache,
     required this.inventorySnapshots,
+    required this.receipts,
   });
 
   static const schemaVersion = 1;
@@ -17,11 +18,13 @@ class AppDatabase {
   static const _saleItemsBox = 'offline_sale_items_v1';
   static const _copyCacheBox = 'copy_cache_v1';
   static const _inventoryBox = 'inventory_snapshots_v1';
+  static const _receiptsBox = 'offline_receipts_v1';
 
   final Box<dynamic> sales;
   final Box<dynamic> saleItems;
   final Box<dynamic> copyCache;
   final Box<dynamic> inventorySnapshots;
+  final Box<dynamic> receipts;
 
   static Future<AppDatabase> open() async {
     await Hive.initFlutter('pubtrack_library');
@@ -37,6 +40,7 @@ class AppDatabase {
       saleItems: await Hive.openBox<dynamic>(_saleItemsBox),
       copyCache: await Hive.openBox<dynamic>(_copyCacheBox),
       inventorySnapshots: await Hive.openBox<dynamic>(_inventoryBox),
+      receipts: await Hive.openBox<dynamic>(_receiptsBox),
     );
   }
 
@@ -46,6 +50,7 @@ class AppDatabase {
       saleItems.clear(),
       copyCache.clear(),
       inventorySnapshots.clear(),
+      receipts.clear(),
     ]);
   }
 
@@ -55,6 +60,7 @@ class AppDatabase {
       saleItems.close(),
       copyCache.close(),
       inventorySnapshots.close(),
+      receipts.close(),
     ]);
   }
 }

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:library_app/core/db/db_providers.dart';
+import 'package:library_app/core/db/offline_models.dart';
 import 'package:library_app/core/theme/app_theme.dart';
+import 'package:library_app/features/auth/presentation/auth_controller.dart';
 import 'package:library_app/features/sale/data/sales_repository.dart';
 import 'package:library_app/features/sale/domain/sale.dart';
 import 'package:library_app/features/sale/presentation/sale_providers.dart';
@@ -11,10 +14,7 @@ import 'package:library_app/features/scan/presentation/scan_providers.dart';
 import 'package:uuid/uuid.dart';
 
 class ConfirmSaleScreen extends ConsumerStatefulWidget {
-  const ConfirmSaleScreen({
-    super.key,
-    this.qrToken,
-  });
+  const ConfirmSaleScreen({super.key, this.qrToken});
 
   final String? qrToken;
 
@@ -63,17 +63,71 @@ class _ConfirmSaleScreenState extends ConsumerState<ConfirmSaleScreen> {
       _error = null;
     });
 
-    try {
-      final sale = await ref.read(salesRepositoryProvider).createSale(
-        CreateSaleRequest(
-          idempotencyKey: _idempotencyKey,
+    final user = ref.read(authProvider).valueOrNull;
+    if (user?.libraryId == null) {
+      setState(() {
+        _submitting = false;
+        _error = 'A library account is required to record a sale.';
+      });
+      return;
+    }
+    final now = DateTime.now().toUtc();
+    final price = unitPriceCents ?? copy.edition?.listPriceCents ?? 0;
+    final localSale = LocalSale(
+      id: _idempotencyKey,
+      libraryId: user!.libraryId!,
+      code: 'OFF-${_idempotencyKey.substring(0, 8).toUpperCase()}',
+      currency: copy.edition?.currency ?? 'USD',
+      totalCents: price,
+      notes: _notesController.text.trim().isEmpty
+          ? null
+          : _notesController.text.trim(),
+      actorUserId: user.id,
+      soldAt: now,
+      createdAt: now,
+      updatedAt: now,
+      idempotencyKey: _idempotencyKey,
+      request: {
+        'libraryId': user.libraryId,
+        'copyUpdatedAt': copy.updatedAt.toIso8601String(),
+        'expectedCopyStatus': copy.status,
+        'items': [
+          {'copyId': copy.id, 'unitPriceCents': price},
+        ],
+      },
+      items: [
+        LocalSaleItem(
+          id: '${_idempotencyKey}_0',
+          localSaleId: _idempotencyKey,
+          editionId: copy.editionId,
           copyId: copy.id,
-          unitPriceCents: unitPriceCents,
-          notes: _notesController.text.trim().isEmpty
-              ? null
-              : _notesController.text.trim(),
+          unitPriceCents: price,
+          createdAt: now,
+          titleSnapshot: copy.displayTitle,
+          authorsSnapshot: copy.authorsLabel,
+          isbnSnapshot: copy.edition?.isbn,
+          copyNumberSnapshot: copy.copyNumber,
         ),
-      );
+      ],
+    );
+    await ref.read(offlineRepositoryProvider).saveSale(localSale);
+
+    try {
+      final sale = await ref
+          .read(salesRepositoryProvider)
+          .createSale(
+            CreateSaleRequest(
+              idempotencyKey: _idempotencyKey,
+              copyId: copy.id,
+              unitPriceCents: unitPriceCents,
+              notes: _notesController.text.trim().isEmpty
+                  ? null
+                  : _notesController.text.trim(),
+            ),
+          );
+      await ref
+          .read(offlineRepositoryProvider)
+          .markSaleSynced(localSale.id, serverId: sale.id);
 
       ref.invalidate(salesListProvider);
       ref.invalidate(salesSummaryProvider);
@@ -84,6 +138,19 @@ class _ConfirmSaleScreenState extends ConsumerState<ConfirmSaleScreen> {
       }
       context.go('/sales/completed/${sale.id}');
     } on SalesException catch (error) {
+      if (error.statusCode != null) {
+        await ref
+            .read(offlineRepositoryProvider)
+            .markSaleFailed(
+              localSale.id,
+              code: error.code ?? 'REJECTED',
+              message: error.message,
+            );
+      } else {
+        if (!mounted) return;
+        context.go('/more/sync');
+        return;
+      }
       if (!mounted) {
         return;
       }
@@ -203,16 +270,16 @@ class _ConfirmBody extends StatelessWidget {
       children: [
         Text(
           copy.displayTitle,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 6),
         Text(
           copy.authorsLabel,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: AppColors.mutedForeground,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(color: AppColors.mutedForeground),
         ),
         const SizedBox(height: 16),
         Card(
@@ -234,9 +301,9 @@ class _ConfirmBody extends StatelessWidget {
             copy.status == 'SOLD'
                 ? 'This copy is already sold and cannot be sold again.'
                 : 'This copy is not in library stock yet, so it cannot be sold.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.warning,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.warning),
           ),
         ],
         const SizedBox(height: 24),
@@ -264,9 +331,9 @@ class _ConfirmBody extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             error!,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.destructive,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.destructive),
           ),
         ],
         const SizedBox(height: 24),
@@ -315,9 +382,9 @@ class _Row extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -339,14 +406,18 @@ class _ErrorBody extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline, size: 48, color: AppColors.destructive),
+          const Icon(
+            Icons.error_outline,
+            size: 48,
+            color: AppColors.destructive,
+          ),
           const SizedBox(height: 16),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.mutedForeground,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.mutedForeground),
           ),
           const SizedBox(height: 24),
           FilledButton(onPressed: onBack, child: const Text('Back to scan')),

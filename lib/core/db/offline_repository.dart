@@ -16,6 +16,16 @@ abstract class OfflineRepository {
     required String message,
   });
   Future<void> markSalePending(String id);
+  Future<void> saveReceipt(LocalReceipt receipt);
+  Future<List<LocalReceipt>> getReceipts({LocalSyncStatus? status});
+  Stream<List<LocalReceipt>> watchReceipts();
+  Future<void> markReceiptSynced(String id, {required String serverId});
+  Future<void> markReceiptFailed(
+    String id, {
+    required String code,
+    required String message,
+  });
+  Future<void> markReceiptPending(String id);
 
   Future<void> cacheCopy(BookCopy copy);
   Future<BookCopy?> getCachedCopy(String id);
@@ -171,6 +181,73 @@ class HiveOfflineRepository implements OfflineRepository {
     final updated = update(sale);
     await _database.sales.put(id, updated.toJson(includeItems: false));
   }
+
+  @override
+  Future<void> saveReceipt(LocalReceipt receipt) =>
+      _database.receipts.put(receipt.id, receipt.toJson());
+
+  @override
+  Future<List<LocalReceipt>> getReceipts({LocalSyncStatus? status}) async {
+    final values = _database.receipts.values
+        .map(LocalReceipt.fromJson)
+        .where((item) => status == null || item.syncStatus == status)
+        .toList();
+    values.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return values;
+  }
+
+  @override
+  Stream<List<LocalReceipt>> watchReceipts() async* {
+    yield await getReceipts();
+    await for (final _ in _database.receipts.watch()) {
+      yield await getReceipts();
+    }
+  }
+
+  Future<void> _updateReceipt(
+    String id,
+    LocalReceipt Function(LocalReceipt receipt) update,
+  ) async {
+    final value = _database.receipts.get(id);
+    if (value == null) throw StateError('Offline receipt $id does not exist.');
+    await _database.receipts.put(
+      id,
+      update(LocalReceipt.fromJson(value)).toJson(),
+    );
+  }
+
+  @override
+  Future<void> markReceiptSynced(String id, {required String serverId}) =>
+      _updateReceipt(
+        id,
+        (receipt) => receipt.copyWith(
+          serverId: serverId,
+          syncStatus: LocalSyncStatus.synced,
+          clearError: true,
+        ),
+      );
+
+  @override
+  Future<void> markReceiptFailed(
+    String id, {
+    required String code,
+    required String message,
+  }) => _updateReceipt(
+    id,
+    (receipt) => receipt.copyWith(
+      syncStatus: LocalSyncStatus.failed,
+      syncErrorCode: code,
+      syncErrorMessage: message,
+      retryCount: receipt.retryCount + 1,
+    ),
+  );
+
+  @override
+  Future<void> markReceiptPending(String id) => _updateReceipt(
+    id,
+    (receipt) =>
+        receipt.copyWith(syncStatus: LocalSyncStatus.pending, clearError: true),
+  );
 
   @override
   Future<void> cacheCopy(BookCopy copy) =>

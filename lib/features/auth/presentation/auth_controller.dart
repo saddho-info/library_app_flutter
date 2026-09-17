@@ -24,7 +24,11 @@ class AuthNotifier extends AsyncNotifier<AuthUser?> {
   }
 
   Future<void> login({required String email, required String password}) async {
-    state = const AsyncLoading();
+    // Keep prior value (usually null) so the router does not bounce to splash.
+    state = const AsyncLoading<AuthUser?>().copyWithPrevious(
+      state,
+      isRefresh: true,
+    );
     state = await AsyncValue.guard(() {
       return ref
           .read(authRepositoryProvider)

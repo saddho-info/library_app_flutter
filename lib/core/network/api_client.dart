@@ -3,20 +3,17 @@ import 'package:library_app/core/network/api_config.dart';
 import 'package:library_app/features/auth/data/token_storage.dart';
 
 class ApiClient {
-  ApiClient({
-    required this._tokenStorage,
-    Dio? dio,
-    String? baseUrl,
-  }) : _dio =
-           dio ??
-           Dio(
-             BaseOptions(
-               baseUrl: baseUrl ?? ApiConfig.baseUrl,
-               headers: {'Content-Type': 'application/json'},
-               connectTimeout: const Duration(seconds: 10),
-               receiveTimeout: const Duration(seconds: 15),
-             ),
-           ) {
+  ApiClient({required this._tokenStorage, Dio? dio, String? baseUrl})
+    : _dio =
+          dio ??
+          Dio(
+            BaseOptions(
+              baseUrl: baseUrl ?? ApiConfig.baseUrl,
+              headers: {'Content-Type': 'application/json'},
+              connectTimeout: const Duration(seconds: 10),
+              receiveTimeout: const Duration(seconds: 15),
+            ),
+          ) {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
