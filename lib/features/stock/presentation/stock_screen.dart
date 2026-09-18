@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:library_app/core/theme/app_theme.dart';
 import 'package:library_app/features/stock/data/receiving_repository.dart';
 import 'package:library_app/features/stock/presentation/receiving_providers.dart';
 
@@ -20,7 +21,12 @@ class StockScreen extends ConsumerWidget {
           await ref.read(inboundShipmentsProvider.future);
         },
         child: shipments.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => Center(
+            child: Semantics(
+              label: 'Loading shipments',
+              child: const CircularProgressIndicator(),
+            ),
+          ),
           error: (error, _) => ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(24),
@@ -41,41 +47,85 @@ class StockScreen extends ConsumerWidget {
               ),
             ],
           ),
-          data: (page) => ListView.separated(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            itemCount: page.data.length + 1,
-            separatorBuilder: (_, _) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              if (index == 0) {
-                return Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      summary == null
-                          ? '${page.data.length} inbound shipments'
-                          : '${page.data.length} inbound · '
-                                '${summary.copiesReceived} copies received',
-                      style: Theme.of(context).textTheme.titleMedium,
+          data: (page) {
+            if (page.data.isEmpty) {
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(24),
+                children: [
+                  if (summary != null)
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          '${summary.copiesReceived} copies received',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 64),
+                  const Icon(
+                    Icons.local_shipping_outlined,
+                    size: 48,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No inbound shipments',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                );
-              }
-              final shipment = page.data[index - 1];
-              return Card(
-                child: ListTile(
-                  leading: const Icon(Icons.local_shipping_outlined),
-                  title: Text(shipment.code),
-                  subtitle: Text(
-                    '${shipment.publisherName} · '
-                    '${shipment.inTransitCount} copies in transit',
+                  const SizedBox(height: 8),
+                  Text(
+                    'When a publisher dispatches stock to your library, '
+                    'shipments appear here for review and receiving.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.mutedForeground,
+                    ),
                   ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.go('/stock/${shipment.id}'),
-                ),
+                ],
               );
-            },
-          ),
+            }
+
+            return ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              itemCount: page.data.length + 1,
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        summary == null
+                            ? '${page.data.length} inbound shipments'
+                            : '${page.data.length} inbound · '
+                                  '${summary.copiesReceived} copies received',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                  );
+                }
+                final shipment = page.data[index - 1];
+                return Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.local_shipping_outlined),
+                    title: Text(shipment.code),
+                    subtitle: Text(
+                      '${shipment.publisherName} · '
+                      '${shipment.inTransitCount} copies in transit',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.go('/stock/${shipment.id}'),
+                  ),
+                );
+              },
+            );
+          },
         ),
       ),
     );

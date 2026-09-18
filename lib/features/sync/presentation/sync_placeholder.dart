@@ -35,96 +35,140 @@ class SyncScreen extends ConsumerWidget {
         ],
       ),
       body: sales.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(
+          child: Semantics(
+            label: 'Loading sync queue',
+            child: const CircularProgressIndicator(),
+          ),
+        ),
         error: (_, _) =>
             const Center(child: Text('Unable to read the local queue.')),
-        data: (items) => ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _ConnectionBanner(state: state),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _CountCard(label: 'Pending', value: state.pending),
+        data: (items) {
+          final queueLength = items.length + receipts.length;
+          return CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    _ConnectionBanner(state: state),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _CountCard(
+                            label: 'Pending',
+                            value: state.pending,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _CountCard(
+                            label: 'Failed',
+                            value: state.failed,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _CountCard(
+                            label: 'Synced',
+                            value: state.synced,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (state.message != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        state.message!,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                    Text(
+                      'Offline transactions',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    if (queueLength == 0)
+                      const Card(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text(
+                            'No offline transactions on this device.',
+                          ),
+                        ),
+                      ),
+                  ]),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _CountCard(label: 'Failed', value: state.failed),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _CountCard(label: 'Synced', value: state.synced),
-                ),
-              ],
-            ),
-            if (state.message != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                state.message!,
-                style: Theme.of(context).textTheme.bodySmall,
               ),
-            ],
-            const SizedBox(height: 20),
-            Text(
-              'Offline transactions',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            if (items.isEmpty)
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text('No offline transactions on this device.'),
+              if (queueLength > 0)
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      if (index < items.length) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _SaleSyncTile(sale: items[index]),
+                        );
+                      }
+                      final receipt = receipts[index - items.length];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Card(
+                          child: ListTile(
+                            leading: Icon(
+                              receipt.syncStatus == LocalSyncStatus.synced
+                                  ? Icons.check_circle_outline
+                                  : receipt.syncStatus == LocalSyncStatus.failed
+                                  ? Icons.error_outline
+                                  : Icons.schedule,
+                            ),
+                            title: const Text('Stock receipt'),
+                            subtitle: Text(
+                              receipt.syncStatus == LocalSyncStatus.failed
+                                  ? '${receipt.syncErrorCode ?? 'FAILED'} · ${receipt.syncErrorMessage ?? 'Needs attention'}'
+                                  : receipt.syncStatus.storageValue,
+                            ),
+                            trailing:
+                                receipt.syncStatus == LocalSyncStatus.failed
+                                ? IconButton(
+                                    tooltip: 'Retry',
+                                    icon: const Icon(Icons.refresh),
+                                    onPressed: () async {
+                                      await ref
+                                          .read(offlineRepositoryProvider)
+                                          .markReceiptPending(receipt.id);
+                                      await ref
+                                          .read(syncControllerProvider.notifier)
+                                          .syncNow();
+                                    },
+                                  )
+                                : null,
+                          ),
+                        ),
+                      );
+                    }, childCount: queueLength),
+                  ),
                 ),
-              )
-            else
-              for (final sale in items) _SaleSyncTile(sale: sale),
-            for (final receipt in receipts)
-              Card(
-                child: ListTile(
-                  leading: Icon(
-                    receipt.syncStatus == LocalSyncStatus.synced
-                        ? Icons.check_circle_outline
-                        : receipt.syncStatus == LocalSyncStatus.failed
-                        ? Icons.error_outline
-                        : Icons.schedule,
-                  ),
-                  title: const Text('Stock receipt'),
-                  subtitle: Text(
-                    receipt.syncStatus == LocalSyncStatus.failed
-                        ? '${receipt.syncErrorCode ?? 'FAILED'} · ${receipt.syncErrorMessage ?? 'Needs attention'}'
-                        : receipt.syncStatus.storageValue,
-                  ),
-                  trailing: receipt.syncStatus == LocalSyncStatus.failed
-                      ? IconButton(
-                          tooltip: 'Retry',
-                          icon: const Icon(Icons.refresh),
-                          onPressed: () async {
-                            await ref
-                                .read(offlineRepositoryProvider)
-                                .markReceiptPending(receipt.id);
-                            await ref
+              if (state.failed > 0)
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  sliver: SliverToBoxAdapter(
+                    child: FilledButton.tonal(
+                      onPressed: state.isOnline && !state.isSyncing
+                          ? () => ref
                                 .read(syncControllerProvider.notifier)
-                                .syncNow();
-                          },
-                        )
-                      : null,
+                                .syncNow(retryFailed: true)
+                          : null,
+                      child: const Text('Retry failed items'),
+                    ),
+                  ),
                 ),
-              ),
-            if (state.failed > 0) ...[
-              const SizedBox(height: 12),
-              FilledButton.tonal(
-                onPressed: state.isOnline && !state.isSyncing
-                    ? () => ref
-                          .read(syncControllerProvider.notifier)
-                          .syncNow(retryFailed: true)
-                    : null,
-                child: const Text('Retry failed items'),
-              ),
             ],
-          ],
-        ),
+          );
+        },
       ),
     );
   }

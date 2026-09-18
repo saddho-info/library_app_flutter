@@ -2,18 +2,24 @@ import 'package:dio/dio.dart';
 import 'package:library_app/core/network/api_config.dart';
 import 'package:library_app/features/auth/data/token_storage.dart';
 
+typedef SessionExpiredCallback = void Function();
+
 class ApiClient {
-  ApiClient({required this._tokenStorage, Dio? dio, String? baseUrl})
-    : _dio =
-          dio ??
-          Dio(
-            BaseOptions(
-              baseUrl: baseUrl ?? ApiConfig.baseUrl,
-              headers: {'Content-Type': 'application/json'},
-              connectTimeout: const Duration(seconds: 10),
-              receiveTimeout: const Duration(seconds: 15),
-            ),
-          ) {
+  ApiClient({
+    required this._tokenStorage,
+    Dio? dio,
+    String? baseUrl,
+    this._onSessionExpired,
+  }) : _dio =
+           dio ??
+           Dio(
+             BaseOptions(
+               baseUrl: baseUrl ?? ApiConfig.baseUrl,
+               headers: {'Content-Type': 'application/json'},
+               connectTimeout: const Duration(seconds: 10),
+               receiveTimeout: const Duration(seconds: 15),
+             ),
+           ) {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -35,6 +41,7 @@ class ApiClient {
           try {
             final refreshed = await _refresh();
             if (!refreshed) {
+              await _expireSession();
               handler.next(error);
               return;
             }
@@ -45,6 +52,7 @@ class ApiClient {
             final response = await _dio.fetch(request);
             handler.resolve(response);
           } catch (_) {
+            await _expireSession();
             handler.next(error);
           }
         },
@@ -52,12 +60,31 @@ class ApiClient {
     );
   }
 
-  final Dio _dio;
   final TokenStorage _tokenStorage;
+  final SessionExpiredCallback? _onSessionExpired;
+  final Dio _dio;
+  Future<bool>? _refreshInFlight;
 
   Dio get raw => _dio;
 
-  Future<bool> _refresh() async {
+  Future<void> _expireSession() async {
+    await _tokenStorage.clear();
+    _onSessionExpired?.call();
+  }
+
+  Future<bool> _refresh() {
+    final inFlight = _refreshInFlight;
+    if (inFlight != null) {
+      return inFlight;
+    }
+    final future = _doRefresh().whenComplete(() {
+      _refreshInFlight = null;
+    });
+    _refreshInFlight = future;
+    return future;
+  }
+
+  Future<bool> _doRefresh() async {
     final refresh = await _tokenStorage.readRefresh();
     if (refresh == null || refresh.isEmpty) {
       return false;

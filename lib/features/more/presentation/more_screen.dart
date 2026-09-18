@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:library_app/core/theme/app_theme.dart';
 import 'package:library_app/features/auth/presentation/auth_controller.dart';
+import 'package:library_app/features/sync/presentation/sync_controller.dart';
 
 class MoreScreen extends ConsumerWidget {
   const MoreScreen({super.key});
@@ -10,6 +11,8 @@ class MoreScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider).valueOrNull;
+    final sync = ref.watch(syncControllerProvider);
+    final pendingTotal = sync.pending + sync.failed;
 
     return Scaffold(
       appBar: AppBar(title: const Text('More')),
@@ -81,8 +84,17 @@ class MoreScreen extends ConsumerWidget {
                 ListTile(
                   leading: const Icon(Icons.sync_outlined),
                   title: const Text('Sync status'),
-                  subtitle: const Text('Offline queue and sync issues'),
-                  trailing: const Icon(Icons.chevron_right),
+                  subtitle: Text(
+                    pendingTotal > 0
+                        ? '$pendingTotal item${pendingTotal == 1 ? '' : 's'} need attention'
+                        : 'Offline queue and sync issues',
+                  ),
+                  trailing: pendingTotal > 0
+                      ? Badge(
+                          label: Text('$pendingTotal'),
+                          child: const Icon(Icons.chevron_right),
+                        )
+                      : const Icon(Icons.chevron_right),
                   onTap: () => context.push('/more/sync'),
                 ),
               ],

@@ -1,11 +1,11 @@
 import 'dart:async';
 
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:library_app/core/db/db_providers.dart';
 import 'package:library_app/core/db/offline_models.dart';
 import 'package:library_app/core/db/sync_status.dart';
+import 'package:library_app/core/network/network_status.dart';
 import 'package:library_app/features/auth/presentation/auth_controller.dart';
 import 'package:library_app/features/sync/data/sync_repository.dart';
 
@@ -63,7 +63,7 @@ final localReceiptsProvider = StreamProvider<List<LocalReceipt>>((ref) {
 });
 
 class SyncController extends Notifier<SyncState> {
-  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  StreamSubscription<bool>? _connectivitySubscription;
   Timer? _retryTimer;
   int _networkFailures = 0;
 
@@ -73,14 +73,14 @@ class SyncController extends Notifier<SyncState> {
       _connectivitySubscription?.cancel();
       _retryTimer?.cancel();
     });
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
+    final network = ref.watch(networkStatusProvider);
+    _connectivitySubscription = network.onOnlineChanged.listen(
       _connectivityChanged,
     );
     ref.listen(localSalesProvider, (_, _) => _refreshCounts());
     ref.listen(localReceiptsProvider, (_, _) => _refreshCounts());
     Future.microtask(() async {
-      final connectivity = await Connectivity().checkConnectivity();
-      await _connectivityChanged(connectivity);
+      await _connectivityChanged(await network.isOnline);
       await _refreshCounts();
     });
     return const SyncState();
@@ -128,8 +128,7 @@ class SyncController extends Notifier<SyncState> {
     await syncNow();
   }
 
-  Future<void> _connectivityChanged(List<ConnectivityResult> results) async {
-    final online = results.any((result) => result != ConnectivityResult.none);
+  Future<void> _connectivityChanged(bool online) async {
     state = state.copyWith(isOnline: online);
     if (online) {
       await syncNow();

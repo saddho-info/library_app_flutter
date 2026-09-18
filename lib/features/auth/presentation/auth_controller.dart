@@ -4,10 +4,20 @@ import 'package:library_app/features/auth/data/auth_repository.dart';
 import 'package:library_app/features/auth/data/token_storage.dart';
 import 'package:library_app/features/auth/domain/user.dart';
 
-final tokenStorageProvider = Provider<TokenStorage>((ref) => TokenStorage());
+/// Defaults to in-memory storage so unit tests never load secure-storage
+/// native hooks. Production overrides this in `main.dart`.
+final tokenStorageProvider = Provider<TokenStorage>(
+  (ref) => MemoryTokenStorage(),
+);
 
 final apiClientProvider = Provider<ApiClient>((ref) {
-  return ApiClient(tokenStorage: ref.watch(tokenStorageProvider));
+  return ApiClient(
+    tokenStorage: ref.watch(tokenStorageProvider),
+    onSessionExpired: () {
+      // Clear signed-in UI state when refresh fails permanently.
+      ref.read(authProvider.notifier).markSignedOut();
+    },
+  );
 });
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
@@ -38,6 +48,11 @@ class AuthNotifier extends AsyncNotifier<AuthUser?> {
 
   Future<void> logout() async {
     await ref.read(authRepositoryProvider).logout();
+    state = const AsyncData(null);
+  }
+
+  /// Called when the API client cannot refresh tokens.
+  void markSignedOut() {
     state = const AsyncData(null);
   }
 }

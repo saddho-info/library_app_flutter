@@ -19,6 +19,7 @@ class BookDetailsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Copy details'),
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
             if (context.canPop()) {
@@ -77,6 +78,7 @@ class _CopyDetailsBody extends StatelessWidget {
                 child: Image.network(
                   cover,
                   fit: BoxFit.cover,
+                  cacheWidth: 600,
                   errorBuilder: (_, _, _) => const _CoverFallback(),
                 ),
               ),

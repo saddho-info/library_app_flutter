@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:library_app/core/theme/app_theme.dart';
+import 'package:library_app/features/sync/presentation/sync_controller.dart';
 
 /// Authenticated frame with bottom navigation: Home / Scan / Stock / Sales / More.
-class AppShell extends StatelessWidget {
+class AppShell extends ConsumerWidget {
   const AppShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
@@ -44,9 +46,68 @@ class AppShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sync = ref.watch(syncControllerProvider);
+    final pendingTotal = sync.pending + sync.failed;
+    final showBanner = !sync.isOnline || pendingTotal > 0;
+
     return Scaffold(
-      body: navigationShell,
+      body: Column(
+        children: [
+          if (showBanner)
+            Material(
+              color: sync.isOnline
+                  ? AppColors.warning.withValues(alpha: 0.15)
+                  : AppColors.destructive.withValues(alpha: 0.12),
+              child: InkWell(
+                onTap: () => context.go('/more/sync'),
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          sync.isOnline
+                              ? Icons.cloud_sync_outlined
+                              : Icons.cloud_off,
+                          size: 18,
+                          color: sync.isOnline
+                              ? AppColors.warning
+                              : AppColors.destructive,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            sync.isOnline
+                                ? '$pendingTotal offline ${pendingTotal == 1 ? 'item' : 'items'} waiting to sync'
+                                : pendingTotal > 0
+                                ? 'Offline · $pendingTotal queued for sync'
+                                : 'You’re offline',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        Text(
+                          'View',
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          Expanded(child: navigationShell),
+        ],
+      ),
       bottomNavigationBar: Material(
         color: AppColors.card,
         child: Column(
@@ -57,17 +118,41 @@ class AppShell extends StatelessWidget {
               selectedIndex: navigationShell.currentIndex,
               onDestinationSelected: _onDestinationSelected,
               destinations: [
-                for (final dest in _destinations)
+                for (var i = 0; i < _destinations.length; i++)
                   NavigationDestination(
-                    icon: Icon(dest.icon),
-                    selectedIcon: Icon(dest.selectedIcon),
-                    label: dest.label,
+                    icon: _NavIcon(
+                      icon: _destinations[i].icon,
+                      badgeCount: i == 4 ? pendingTotal : 0,
+                    ),
+                    selectedIcon: _NavIcon(
+                      icon: _destinations[i].selectedIcon,
+                      badgeCount: i == 4 ? pendingTotal : 0,
+                    ),
+                    label: _destinations[i].label,
                   ),
               ],
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _NavIcon extends StatelessWidget {
+  const _NavIcon({required this.icon, required this.badgeCount});
+
+  final IconData icon;
+  final int badgeCount;
+
+  @override
+  Widget build(BuildContext context) {
+    if (badgeCount <= 0) {
+      return Icon(icon);
+    }
+    return Badge(
+      label: Text(badgeCount > 99 ? '99+' : '$badgeCount'),
+      child: Icon(icon),
     );
   }
 }

@@ -190,6 +190,7 @@ class _ConfirmSaleScreenState extends ConsumerState<ConfirmSaleScreen> {
       appBar: AppBar(
         title: const Text('Confirm sale'),
         leading: IconButton(
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
             if (context.canPop()) {

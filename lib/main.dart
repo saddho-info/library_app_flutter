@@ -4,9 +4,11 @@ import 'package:library_app/core/db/app_database.dart';
 import 'package:library_app/core/db/db_providers.dart';
 import 'package:library_app/core/router/app_router.dart';
 import 'package:library_app/core/theme/app_theme.dart';
-import 'package:library_app/features/sync/presentation/sync_controller.dart';
+import 'package:library_app/features/auth/data/secure_token_storage.dart';
+import 'package:library_app/features/auth/presentation/auth_controller.dart';
 import 'package:library_app/features/notifications/data/push_notification_service.dart';
 import 'package:library_app/features/notifications/presentation/notifications_controller.dart';
+import 'package:library_app/features/sync/presentation/sync_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,7 +16,10 @@ Future<void> main() async {
   final database = await AppDatabase.open();
   runApp(
     ProviderScope(
-      overrides: [appDatabaseProvider.overrideWithValue(database)],
+      overrides: [
+        appDatabaseProvider.overrideWithValue(database),
+        tokenStorageProvider.overrideWithValue(SecureTokenStorage()),
+      ],
       child: const MainApp(),
     ),
   );
