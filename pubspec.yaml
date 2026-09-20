@@ -3,6 +3,13 @@ description: "A new Flutter project."
 publish_to: 'none'
 version: 0.1.0+1
 
+# ----- Different versions per platform -----
+# flutter build apk --split-per-abi && open build/app/outputs/flutter-apk/
+# flutter build apk --release --build-name=1.0.0 --build-number=10 && open build/app/outputs/flutter-apk/    # Android
+# flutter build aab --release --build-name=1.0.0 --build-number=10 && open build/app/outputs/bundle/release/    # Android
+# flutter build ios --release --build-name=1.0.0 --build-number=9    # iOS
+# flutter build ipa --build-name=1.0.3 --build-number=01    # iOS
+
 environment:
   sdk: ^3.12.2
 

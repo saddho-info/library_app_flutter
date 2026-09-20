@@ -172,6 +172,18 @@ class _ReceiveShipmentScreenState extends ConsumerState<ReceiveShipmentScreen> {
                       ),
                     const SizedBox(width: 8),
                     FilledButton(
+                      // Override the app theme's Size.fromHeight(44)
+                      // minimumSize (width: double.infinity) with a
+                      // finite width. Inside this Row the button is
+                      // meant to hug its content, and during Stepper
+                      // step-change animations the surrounding
+                      // RenderStack can hand this button unbounded
+                      // width constraints, which combined with an
+                      // infinite-width minimumSize throws
+                      // "BoxConstraints forces an infinite width".
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(64, 44),
+                      ),
                       onPressed: _submitting
                           ? null
                           : _step == 2
