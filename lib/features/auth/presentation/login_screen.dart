@@ -73,27 +73,45 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       controller: _email,
                       keyboardType: TextInputType.emailAddress,
                       autofillHints: const [AutofillHints.email],
-                      decoration: const InputDecoration(labelText: 'Email'),
+                      decoration: const InputDecoration(
+                        labelText: 'Email',
+                        hintText: 'walt.e@example.net',
+                      ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
                           return 'Email is required';
                         }
                         return null;
                       },
+                      onTap: () {
+                        if (_email.text.isEmpty) {
+                          _email.text = 'walt.e@example.net';
+                        }
+                      },
                     ),
+
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _password,
                       obscureText: true,
                       autofillHints: const [AutofillHints.password],
-                      decoration: const InputDecoration(labelText: 'Password'),
+                      decoration: const InputDecoration(
+                        labelText: 'Password',
+                        hintText: 'ChangeMe123!',
+                      ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Password is required';
                         }
                         return null;
                       },
+                      onTap: () {
+                        if (_password.text.isEmpty) {
+                          _password.text = 'ChangeMe123!';
+                        }
+                      },
                     ),
+
                     if (auth.hasError) ...[
                       const SizedBox(height: 12),
                       Text(

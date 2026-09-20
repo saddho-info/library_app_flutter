@@ -19,12 +19,25 @@ Flutter client for library staff.
 flutter run
 ```
 
-Android emulators automatically use `http://10.0.2.2:3000` (host machine). Override when needed:
+Android emulators / iOS simulators automatically reach the host machine (`http://10.0.2.2:3000` / `http://127.0.0.1:3000`, see `lib/core/network/api_config.dart`) — no extra config needed.
+
+**Physical device on the same Wi-Fi:** the app needs your machine's LAN IP baked in via `--dart-define`. Use `scripts/run.sh`, which auto-detects it for you instead of guessing (a common source of "can't connect to local server"):
 
 ```bash
-# Physical device on the same LAN (replace with your Mac's IP):
+./scripts/run.sh                     # auto-detects your LAN IP, runs `flutter run`
+./scripts/run.sh --emulator          # emulator/simulator, no IP override
+./scripts/run.sh --ip=192.168.1.42   # force a specific IP
+./scripts/run.sh -- -d <deviceId>    # forward extra args to `flutter run`
+```
+
+Equivalent manual command, if you'd rather not use the script:
+
+```bash
+ipconfig getifaddr en0   # find your Mac's LAN IP
 flutter run --dart-define=API_BASE_URL=http://192.168.x.x:3000
 ```
+
+If the app still can't connect: confirm the backend is running (`curl http://<your-ip>:3000` from the Mac), confirm the phone and Mac are on the *same* Wi-Fi network (not a guest network with client isolation), and check **System Settings → Network → Firewall** isn't blocking incoming connections to `node`.
 
 Demo library account: `walt.e@example.net` / `ChangeMe123!`
 
