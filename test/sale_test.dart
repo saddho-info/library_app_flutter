@@ -60,7 +60,7 @@ void main() {
   test('parses sale payload including string authors', () {
     final sale = Sale.fromJson(sample);
     expect(sale.code, 'S-20260101-001');
-    expect(sale.totalLabel, 'USD 20.00');
+    expect(sale.totalLabel, 'BDT 20.00');
     expect(sale.primaryTitle, 'Silent Archive');
     expect(sale.items.first.authorsLabel, 'A. Writer, Co Author');
     expect(sale.items.first.copy?.copyNumber, 7);
@@ -72,5 +72,31 @@ void main() {
     expect(parseMoneyToCents('\$10'), 1000);
     expect(parseMoneyToCents(''), isNull);
     expect(parseMoneyToCents('-1'), isNull);
+  });
+
+  test('applies amount and percentage discounts to the unit price', () {
+    expect(
+      discountedUnitPriceCents(
+        unitPriceCents: 2000,
+        type: SaleDiscountType.amount,
+        value: 500,
+      ),
+      1500,
+    );
+    expect(
+      discountedUnitPriceCents(
+        unitPriceCents: 2000,
+        type: SaleDiscountType.percent,
+        value: 1000,
+      ),
+      1800,
+    );
+    expect(parsePercentToBasisPoints('12.5'), 1250);
+    expect(parsePercentToBasisPoints('101'), isNull);
+    expect(
+      discountLabel(type: SaleDiscountType.amount, value: 250),
+      'BDT 2.50',
+    );
+    expect(discountLabel(type: SaleDiscountType.percent, value: 1000), '10%');
   });
 }

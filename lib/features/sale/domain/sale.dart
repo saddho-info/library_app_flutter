@@ -380,3 +380,59 @@ int? parseMoneyToCents(String raw) {
   }
   return (value * 100).round();
 }
+
+/// How a librarian discount is expressed on the post-scan sale form.
+enum SaleDiscountType { amount, percent }
+
+/// Parses a percentage into basis points (10000 = 100%). Empty means 0.
+int? parsePercentToBasisPoints(String raw) {
+  final cleaned = raw.trim().replaceAll('%', '');
+  if (cleaned.isEmpty) {
+    return 0;
+  }
+  final value = double.tryParse(cleaned);
+  if (value == null || value < 0 || value > 100) {
+    return null;
+  }
+  return (value * 100).round();
+}
+
+/// Unit price after the chosen discount. Amount is cents off each copy.
+/// Percent is basis points off each copy (10000 = 100%).
+int discountedUnitPriceCents({
+  required int unitPriceCents,
+  required SaleDiscountType type,
+  required int value,
+}) {
+  if (value <= 0) {
+    return unitPriceCents;
+  }
+  switch (type) {
+    case SaleDiscountType.amount:
+      final next = unitPriceCents - value;
+      return next < 0 ? 0 : next;
+    case SaleDiscountType.percent:
+      final basis = value > 10000 ? 10000 : value;
+      return ((unitPriceCents * (10000 - basis)) / 10000).round();
+  }
+}
+
+String discountLabel({
+  required SaleDiscountType type,
+  required int value,
+  String currency = 'USD',
+}) {
+  if (value <= 0) {
+    return 'None';
+  }
+  switch (type) {
+    case SaleDiscountType.amount:
+      return formatMoney(value, currency);
+    case SaleDiscountType.percent:
+      final percent = value / 100;
+      final text = percent == percent.roundToDouble()
+          ? percent.toStringAsFixed(0)
+          : percent.toStringAsFixed(2);
+      return '$text%';
+  }
+}

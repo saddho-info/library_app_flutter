@@ -29,11 +29,7 @@ void main() {
         'coverImageUrl': null,
       },
     },
-    'library': {
-      'id': 'lib_1',
-      'name': 'Central Library',
-      'slug': 'central',
-    },
+    'library': {'id': 'lib_1', 'name': 'Central Library', 'slug': 'central'},
   };
 
   test('parses API copy payload for scan details', () {
@@ -43,7 +39,7 @@ void main() {
     expect(copy.authorsLabel, 'N. Author, Co Writer');
     expect(copy.statusLabel, 'In library stock');
     expect(copy.isSellable, isTrue);
-    expect(copy.priceLabel, 'USD 15.99');
+    expect(copy.priceLabel, 'BDT 15.99');
     expect(copy.copyNumber, 42);
     expect(copy.library?.name, 'Central Library');
   });

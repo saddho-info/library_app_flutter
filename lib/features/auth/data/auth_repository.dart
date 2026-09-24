@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:library_app/core/network/api_client.dart';
 import 'package:library_app/features/auth/data/token_storage.dart';
@@ -39,6 +41,10 @@ class AuthRepository {
       await _tokens.save(
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
+        userJson: jsonEncode(tokens.user.toJson()),
+        accessExpiresAt: DateTime.now().toUtc().add(
+          Duration(seconds: tokens.expiresIn),
+        ),
       );
       return tokens.user;
     } on DioException catch (error) {
@@ -47,29 +53,59 @@ class AuthRepository {
   }
 
   Future<AuthUser?> restoreSession() async {
-    final access = await _tokens.readAccess();
-    if (access == null || access.isEmpty) {
+    final refresh = await _tokens.readRefresh();
+    if (refresh == null || refresh.isEmpty) {
       return null;
     }
     try {
       final response = await _api.raw.get<Map<String, dynamic>>(
         '/api/v1/auth/me',
       );
-      return AuthUser.fromJson(response.data!);
+      final user = AuthUser.fromJson(response.data!);
+      await _tokens.writeUserJson(jsonEncode(user.toJson()));
+      return user;
     } on DioException {
-      await _tokens.clear();
-      return null;
+      final remaining = await _tokens.readRefresh();
+      if (remaining == null || remaining.isEmpty) {
+        return null;
+      }
+      return _readCachedUser();
     }
   }
 
   Future<void> logout() async {
+    final refresh = await _tokens.readRefresh();
     try {
-      await _api.raw.post<void>('/api/v1/auth/logout');
+      await _api.raw.post<void>(
+        '/api/v1/auth/logout',
+        data: {
+          if (refresh != null && refresh.isNotEmpty) 'refreshToken': refresh,
+        },
+      );
     } on DioException {
       // Still clear local tokens.
     } finally {
       await _tokens.clear();
     }
+  }
+
+  Future<AuthUser?> _readCachedUser() async {
+    final raw = await _tokens.readUserJson();
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        return AuthUser.fromJson(decoded);
+      }
+      if (decoded is Map) {
+        return AuthUser.fromJson(Map<String, dynamic>.from(decoded));
+      }
+    } catch (_) {
+      return null;
+    }
+    return null;
   }
 
   String _messageFrom(DioException error) {

@@ -35,6 +35,18 @@ class AuthUser {
       libraryId: json['libraryId'] as String?,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'email': email,
+      'firstName': firstName,
+      'lastName': lastName,
+      'role': role,
+      'publisherId': publisherId,
+      'libraryId': libraryId,
+    };
+  }
 }
 
 class AuthTokens {

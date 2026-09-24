@@ -7,6 +7,7 @@ import 'package:library_app/features/auth/presentation/login_screen.dart';
 import 'package:library_app/features/home/presentation/home_screen.dart';
 import 'package:library_app/features/more/presentation/more_screen.dart';
 import 'package:library_app/features/notifications/presentation/notifications_screen.dart';
+import 'package:library_app/features/sale/domain/sale.dart';
 import 'package:library_app/features/sale/presentation/confirm_sale_screen.dart';
 import 'package:library_app/features/sale/presentation/sale_completed_screen.dart';
 import 'package:library_app/features/sale/presentation/sale_detail_screen.dart';
@@ -139,7 +140,27 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                     path: 'confirm',
                     builder: (context, state) {
                       final token = state.uri.queryParameters['token']?.trim();
-                      return ConfirmSaleScreen(qrToken: token);
+                      final quantity = int.tryParse(
+                        state.uri.queryParameters['quantity'] ?? '',
+                      );
+                      final discountValue = int.tryParse(
+                        state.uri.queryParameters['discountValue'] ?? '',
+                      );
+                      final discountType =
+                          state.uri.queryParameters['discountType'] ==
+                              'percent'
+                          ? SaleDiscountType.percent
+                          : SaleDiscountType.amount;
+                      return ConfirmSaleScreen(
+                        qrToken: token,
+                        quantity: quantity != null && quantity >= 1
+                            ? quantity
+                            : 1,
+                        discountType: discountType,
+                        discountValue: discountValue != null && discountValue > 0
+                            ? discountValue
+                            : 0,
+                      );
                     },
                   ),
                   GoRoute(

@@ -20,6 +20,7 @@ void main() {
 
     expect(tokens.user.displayName, 'Jamal Hossain');
     expect(tokens.user.isLibraryRole, isTrue);
+    expect(tokens.user.toJson()['libraryId'], 'lib_1');
   });
 
   test('rejects publisher-only roles for the library app', () {

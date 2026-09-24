@@ -14,9 +14,21 @@ import 'package:library_app/features/scan/presentation/scan_providers.dart';
 import 'package:uuid/uuid.dart';
 
 class ConfirmSaleScreen extends ConsumerStatefulWidget {
-  const ConfirmSaleScreen({super.key, this.qrToken});
+  const ConfirmSaleScreen({
+    super.key,
+    this.qrToken,
+    this.quantity = 1,
+    this.discountType = SaleDiscountType.amount,
+    this.discountValue = 0,
+  });
 
   final String? qrToken;
+  final int quantity;
+
+  /// [discountValue] is cents when [discountType] is amount, and basis
+  /// points (10000 = 100%) when it is a percentage.
+  final SaleDiscountType discountType;
+  final int discountValue;
 
   @override
   ConsumerState<ConfirmSaleScreen> createState() => _ConfirmSaleScreenState();
@@ -63,7 +75,7 @@ class _ConfirmSaleScreenState extends ConsumerState<ConfirmSaleScreen> {
       _error = null;
     });
 
-    final user = ref.read(authProvider).valueOrNull;
+    final user = await ref.read(authProvider.future);
     if (user?.libraryId == null) {
       setState(() {
         _submitting = false;
@@ -72,13 +84,28 @@ class _ConfirmSaleScreenState extends ConsumerState<ConfirmSaleScreen> {
       return;
     }
     final now = DateTime.now().toUtc();
-    final price = unitPriceCents ?? copy.edition?.listPriceCents ?? 0;
+    final listPrice = unitPriceCents ?? copy.edition?.listPriceCents ?? 0;
+    final quantity = widget.quantity < 1 ? 1 : widget.quantity;
+    final discountValue = widget.discountValue < 0 ? 0 : widget.discountValue;
+    if (widget.discountType == SaleDiscountType.amount &&
+        discountValue > listPrice) {
+      setState(() {
+        _submitting = false;
+        _error = 'Discount amount cannot be more than the unit price.';
+      });
+      return;
+    }
+    final price = discountedUnitPriceCents(
+      unitPriceCents: listPrice,
+      type: widget.discountType,
+      value: discountValue,
+    );
     final localSale = LocalSale(
       id: _idempotencyKey,
       libraryId: user!.libraryId!,
       code: 'OFF-${_idempotencyKey.substring(0, 8).toUpperCase()}',
       currency: copy.edition?.currency ?? 'USD',
-      totalCents: price,
+      totalCents: price * quantity,
       notes: _notesController.text.trim().isEmpty
           ? null
           : _notesController.text.trim(),
@@ -92,7 +119,7 @@ class _ConfirmSaleScreenState extends ConsumerState<ConfirmSaleScreen> {
         'copyUpdatedAt': copy.updatedAt.toIso8601String(),
         'expectedCopyStatus': copy.status,
         'items': [
-          {'copyId': copy.id, 'unitPriceCents': price},
+          {'copyId': copy.id, 'unitPriceCents': price, 'quantity': quantity},
         ],
       },
       items: [
@@ -102,6 +129,7 @@ class _ConfirmSaleScreenState extends ConsumerState<ConfirmSaleScreen> {
           editionId: copy.editionId,
           copyId: copy.id,
           unitPriceCents: price,
+          quantity: quantity,
           createdAt: now,
           titleSnapshot: copy.displayTitle,
           authorsSnapshot: copy.authorsLabel,
@@ -119,7 +147,8 @@ class _ConfirmSaleScreenState extends ConsumerState<ConfirmSaleScreen> {
             CreateSaleRequest(
               idempotencyKey: _idempotencyKey,
               copyId: copy.id,
-              unitPriceCents: unitPriceCents,
+              unitPriceCents: price,
+              quantity: quantity,
               notes: _notesController.text.trim().isEmpty
                   ? null
                   : _notesController.text.trim(),
@@ -226,6 +255,9 @@ class _ConfirmSaleScreenState extends ConsumerState<ConfirmSaleScreen> {
             copy: copy,
             priceController: _priceController,
             notesController: _notesController,
+            quantity: widget.quantity < 1 ? 1 : widget.quantity,
+            discountType: widget.discountType,
+            discountValue: widget.discountValue < 0 ? 0 : widget.discountValue,
             submitting: _submitting,
             error: _error,
             onSubmit: () => _submit(copy),
@@ -248,6 +280,9 @@ class _ConfirmBody extends StatelessWidget {
     required this.copy,
     required this.priceController,
     required this.notesController,
+    required this.quantity,
+    required this.discountType,
+    required this.discountValue,
     required this.submitting,
     required this.error,
     required this.onSubmit,
@@ -257,6 +292,9 @@ class _ConfirmBody extends StatelessWidget {
   final BookCopy copy;
   final TextEditingController priceController;
   final TextEditingController notesController;
+  final int quantity;
+  final SaleDiscountType discountType;
+  final int discountValue;
   final bool submitting;
   final String? error;
   final VoidCallback onSubmit;
@@ -286,13 +324,42 @@ class _ConfirmBody extends StatelessWidget {
         Card(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Column(
-              children: [
-                _Row(label: 'Copy #', value: '${copy.copyNumber}'),
-                _Row(label: 'ISBN', value: copy.edition?.isbn ?? '—'),
-                _Row(label: 'Status', value: copy.statusLabel),
-                _Row(label: 'List price', value: copy.priceLabel),
-              ],
+            child: ListenableBuilder(
+              listenable: priceController,
+              builder: (context, _) {
+                final priced = _pricedLine(
+                  rawPrice: priceController.text,
+                  listPriceCents: copy.edition?.listPriceCents ?? 0,
+                  quantity: quantity,
+                  discountType: discountType,
+                  discountValue: discountValue,
+                );
+                return Column(
+                  children: [
+                    _Row(label: 'Copy #', value: '${copy.copyNumber}'),
+                    _Row(label: 'ISBN', value: copy.edition?.isbn ?? '—'),
+                    _Row(label: 'Status', value: copy.statusLabel),
+                    _Row(label: 'List price', value: copy.priceLabel),
+                    _Row(label: 'Quantity', value: '$quantity'),
+                    _Row(
+                      label: 'Discount',
+                      value: discountLabel(
+                        type: discountType,
+                        value: discountValue,
+                        currency: currency,
+                      ),
+                    ),
+                    _Row(
+                      label: 'Amount off',
+                      value: formatMoney(priced.amountOffCents, currency),
+                    ),
+                    _Row(
+                      label: 'Discounted amount',
+                      value: formatMoney(priced.discountedTotalCents, currency),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -356,6 +423,38 @@ class _ConfirmBody extends StatelessWidget {
       ],
     );
   }
+}
+
+class _PricedLine {
+  const _PricedLine({
+    required this.amountOffCents,
+    required this.discountedTotalCents,
+  });
+
+  final int amountOffCents;
+  final int discountedTotalCents;
+}
+
+_PricedLine _pricedLine({
+  required String rawPrice,
+  required int listPriceCents,
+  required int quantity,
+  required SaleDiscountType discountType,
+  required int discountValue,
+}) {
+  final parsed = parseMoneyToCents(rawPrice.trim());
+  final unit = parsed ?? listPriceCents;
+  final discounted = discountedUnitPriceCents(
+    unitPriceCents: unit,
+    type: discountType,
+    value: discountValue,
+  );
+  final safeQuantity = quantity < 1 ? 1 : quantity;
+  final off = unit - discounted;
+  return _PricedLine(
+    amountOffCents: (off < 0 ? 0 : off) * safeQuantity,
+    discountedTotalCents: discounted * safeQuantity,
+  );
 }
 
 class _Row extends StatelessWidget {

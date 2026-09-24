@@ -127,7 +127,11 @@ class SyncRepository {
     payload['libraryId'] = sale.libraryId;
     payload['items'] ??= [
       for (final item in sale.items)
-        {'copyId': item.copyId, 'unitPriceCents': item.unitPriceCents},
+        {
+          'copyId': item.copyId,
+          'unitPriceCents': item.unitPriceCents,
+          'quantity': item.quantity,
+        },
     ];
     return {
       'clientId': sale.idempotencyKey,

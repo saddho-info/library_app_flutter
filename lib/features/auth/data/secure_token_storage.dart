@@ -15,6 +15,8 @@ class SecureTokenStorage implements TokenStorage {
 
   static const _accessKey = 'pt_access_token';
   static const _refreshKey = 'pt_refresh_token';
+  static const _userKey = 'pt_auth_user';
+  static const _expiresKey = 'pt_access_expires_at';
 
   final FlutterSecureStorage _storage;
 
@@ -22,9 +24,20 @@ class SecureTokenStorage implements TokenStorage {
   Future<void> save({
     required String accessToken,
     required String refreshToken,
+    String? userJson,
+    DateTime? accessExpiresAt,
   }) async {
     await _storage.write(key: _accessKey, value: accessToken);
     await _storage.write(key: _refreshKey, value: refreshToken);
+    if (userJson != null) {
+      await _storage.write(key: _userKey, value: userJson);
+    }
+    if (accessExpiresAt != null) {
+      await _storage.write(
+        key: _expiresKey,
+        value: accessExpiresAt.toUtc().toIso8601String(),
+      );
+    }
   }
 
   @override
@@ -34,8 +47,27 @@ class SecureTokenStorage implements TokenStorage {
   Future<String?> readRefresh() => _storage.read(key: _refreshKey);
 
   @override
+  Future<String?> readUserJson() => _storage.read(key: _userKey);
+
+  @override
+  Future<DateTime?> readAccessExpiresAt() async {
+    final raw = await _storage.read(key: _expiresKey);
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+    return DateTime.tryParse(raw)?.toUtc();
+  }
+
+  @override
+  Future<void> writeUserJson(String userJson) {
+    return _storage.write(key: _userKey, value: userJson);
+  }
+
+  @override
   Future<void> clear() async {
     await _storage.delete(key: _accessKey);
     await _storage.delete(key: _refreshKey);
+    await _storage.delete(key: _userKey);
+    await _storage.delete(key: _expiresKey);
   }
 }

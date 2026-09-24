@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:library_app/core/db/db_providers.dart';
+import 'package:library_app/core/db/offline_models.dart';
+import 'package:library_app/core/db/offline_repository.dart';
+import 'package:library_app/core/db/sync_status.dart';
+import 'package:library_app/features/auth/domain/user.dart';
+import 'package:library_app/features/auth/presentation/auth_controller.dart';
 import 'package:library_app/features/sale/data/sales_repository.dart';
 import 'package:library_app/features/sale/domain/sale.dart';
 import 'package:library_app/features/sale/presentation/confirm_sale_screen.dart';
@@ -17,6 +23,109 @@ class _FakeCopiesRepository implements CopiesRepository {
 
   @override
   Future<BookCopy> findByQrToken(String token) async => copy;
+}
+
+class _SignedInAuth extends AuthNotifier {
+  @override
+  Future<AuthUser?> build() async {
+    return const AuthUser(
+      id: 'user_1',
+      email: 'walt.e@example.net',
+      firstName: 'Lib',
+      lastName: 'Staff',
+      role: 'LIBRARY_STAFF',
+      libraryId: 'lib_1',
+    );
+  }
+}
+
+class _MemoryOfflineRepository implements OfflineRepository {
+  LocalSale? sale;
+
+  @override
+  Future<void> saveSale(LocalSale sale) async {
+    this.sale = sale;
+  }
+
+  @override
+  Future<void> markSaleSynced(String id, {required String serverId}) async {}
+
+  @override
+  Future<void> markSaleFailed(
+    String id, {
+    required String code,
+    required String message,
+  }) async {}
+
+  @override
+  Future<LocalSale?> getSale(String id) async => sale;
+
+  @override
+  Future<LocalSale?> getSaleByIdempotencyKey(String key) async => null;
+
+  @override
+  Future<List<LocalSale>> getSales({
+    LocalSyncStatus? status,
+    int? limit,
+  }) async => const [];
+
+  @override
+  Stream<List<LocalSale>> watchSales({LocalSyncStatus? status}) =>
+      const Stream.empty();
+
+  @override
+  Future<void> markSalePending(String id) async {}
+
+  @override
+  Future<void> saveReceipt(LocalReceipt receipt) async {}
+
+  @override
+  Future<List<LocalReceipt>> getReceipts({LocalSyncStatus? status}) async =>
+      const [];
+
+  @override
+  Stream<List<LocalReceipt>> watchReceipts() => const Stream.empty();
+
+  @override
+  Future<void> markReceiptSynced(String id, {required String serverId}) async {}
+
+  @override
+  Future<void> markReceiptFailed(
+    String id, {
+    required String code,
+    required String message,
+  }) async {}
+
+  @override
+  Future<void> markReceiptPending(String id) async {}
+
+  @override
+  Future<void> cacheCopy(BookCopy copy) async {}
+
+  @override
+  Future<BookCopy?> getCachedCopy(String id) async => null;
+
+  @override
+  Future<BookCopy?> getCachedCopyByQr(String qrToken) async => null;
+
+  @override
+  Future<void> removeCachedCopy(String id) async {}
+
+  @override
+  Future<void> cacheInventory(InventorySnapshot snapshot) async {}
+
+  @override
+  Future<InventorySnapshot?> getInventory({
+    required String editionId,
+    required String holderType,
+    required String holderId,
+  }) async => null;
+
+  @override
+  Future<List<InventorySnapshot>> getInventoryForHolder({
+    required String holderType,
+    required String holderId,
+  }) async => const [];
 }
 
 class _FakeSalesRepository implements SalesRepository {
@@ -135,17 +244,13 @@ void main() {
     ],
   });
 
-  Widget buildApp({
-    required SalesRepository sales,
-    required BookCopy copy,
-  }) {
+  Widget buildApp({required SalesRepository sales, required BookCopy copy}) {
     final router = GoRouter(
       initialLocation: '/sales/confirm?token=tok',
       routes: [
         GoRoute(
           path: '/sales/confirm',
-          builder: (context, state) =>
-              const ConfirmSaleScreen(qrToken: 'tok'),
+          builder: (context, state) => const ConfirmSaleScreen(qrToken: 'tok'),
         ),
         GoRoute(
           path: '/sales/completed/:saleId',
@@ -162,26 +267,39 @@ void main() {
 
     return ProviderScope(
       overrides: [
-        copiesRepositoryProvider.overrideWithValue(
-          _FakeCopiesRepository(copy),
-        ),
+        copiesRepositoryProvider.overrideWithValue(_FakeCopiesRepository(copy)),
         salesRepositoryProvider.overrideWithValue(sales),
+        authProvider.overrideWith(() => _SignedInAuth()),
+        offlineRepositoryProvider.overrideWithValue(_MemoryOfflineRepository()),
       ],
       child: MaterialApp.router(routerConfig: router),
     );
   }
 
+  void useTallSurface(WidgetTester tester) {
+    tester.view.physicalSize = const Size(800, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+  }
+
   testWidgets('confirm sale screen shows copy and enables confirm', (
     tester,
   ) async {
+    useTallSurface(tester);
     final sales = _FakeSalesRepository()..result = sampleSale;
 
-    await tester.pumpWidget(
-      buildApp(sales: sales, copy: sampleCopy),
-    );
+    await tester.pumpWidget(buildApp(sales: sales, copy: sampleCopy));
     await tester.pumpAndSettle();
 
     expect(find.text('Silent Archive'), findsOneWidget);
+    expect(find.text('Quantity'), findsOneWidget);
+    expect(find.text('Discount'), findsOneWidget);
+    expect(find.text('None'), findsOneWidget);
+    expect(find.text('Amount off'), findsOneWidget);
+    expect(find.text('Discounted amount'), findsOneWidget);
+    expect(find.text('BDT 20.00'), findsWidgets);
+    expect(find.text('1'), findsWidgets);
     final button = tester.widget<FilledButton>(
       find.widgetWithText(FilledButton, 'Confirm sale'),
     );
@@ -189,15 +307,15 @@ void main() {
   });
 
   testWidgets('shows already-sold error from API', (tester) async {
+    useTallSurface(tester);
     final sales = _FakeSalesRepository()
       ..error = SalesException(
         'This copy has already been sold.',
+        statusCode: 400,
         code: 'ALREADY_SOLD',
       );
 
-    await tester.pumpWidget(
-      buildApp(sales: sales, copy: sampleCopy),
-    );
+    await tester.pumpWidget(buildApp(sales: sales, copy: sampleCopy));
     await tester.pumpAndSettle();
 
     await tester.tap(find.widgetWithText(FilledButton, 'Confirm sale'));
@@ -205,15 +323,15 @@ void main() {
 
     expect(find.text('This copy has already been sold.'), findsOneWidget);
     expect(sales.lastRequest?.copyId, 'copy_1');
+    expect(sales.lastRequest?.quantity, 1);
     expect(sales.lastRequest?.idempotencyKey, isNotEmpty);
   });
 
   testWidgets('navigates to completed screen on success', (tester) async {
+    useTallSurface(tester);
     final sales = _FakeSalesRepository()..result = sampleSale;
 
-    await tester.pumpWidget(
-      buildApp(sales: sales, copy: sampleCopy),
-    );
+    await tester.pumpWidget(buildApp(sales: sales, copy: sampleCopy));
     await tester.pumpAndSettle();
 
     await tester.tap(find.widgetWithText(FilledButton, 'Confirm sale'));

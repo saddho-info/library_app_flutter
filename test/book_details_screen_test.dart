@@ -60,9 +60,7 @@ void main() {
             _FakeCopiesRepository(sampleCopy),
           ),
         ],
-        child: const MaterialApp(
-          home: BookDetailsScreen(qrToken: 'tok'),
-        ),
+        child: const MaterialApp(home: BookDetailsScreen(qrToken: 'tok')),
       ),
     );
     await tester.pumpAndSettle();
@@ -70,9 +68,14 @@ void main() {
     expect(find.text('Silent Archive'), findsOneWidget);
     expect(find.text('A. Writer'), findsOneWidget);
     expect(find.text('In library stock'), findsOneWidget);
-    expect(find.text('USD 20.00'), findsOneWidget);
+    expect(find.text('BDT 20.00'), findsOneWidget);
     expect(find.text('Scan another'), findsOneWidget);
     expect(find.text('Confirm sale'), findsOneWidget);
+    expect(find.text('Quantity'), findsOneWidget);
+    expect(find.text('Discount type'), findsOneWidget);
+    expect(find.text('Amount'), findsOneWidget);
+    expect(find.text('Percentage'), findsOneWidget);
+    expect(find.byType(TextField), findsNWidgets(2));
   });
 
   testWidgets('shows error when copy is missing', (tester) async {
@@ -81,13 +84,14 @@ void main() {
         overrides: [
           copiesRepositoryProvider.overrideWithValue(
             _FakeCopiesRepository(
-              CopiesException('No copy found for this QR code.', statusCode: 404),
+              CopiesException(
+                'No copy found for this QR code.',
+                statusCode: 404,
+              ),
             ),
           ),
         ],
-        child: const MaterialApp(
-          home: BookDetailsScreen(qrToken: 'missing'),
-        ),
+        child: const MaterialApp(home: BookDetailsScreen(qrToken: 'missing')),
       ),
     );
     await tester.pumpAndSettle();

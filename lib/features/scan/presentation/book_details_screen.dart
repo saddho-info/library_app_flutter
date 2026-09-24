@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:library_app/core/theme/app_theme.dart';
+import 'package:library_app/features/sale/domain/sale.dart';
 import 'package:library_app/features/scan/data/copies_repository.dart';
 import 'package:library_app/features/scan/domain/book_copy.dart';
 import 'package:library_app/features/scan/presentation/scan_providers.dart';
@@ -45,11 +47,80 @@ class BookDetailsScreen extends ConsumerWidget {
   }
 }
 
-class _CopyDetailsBody extends StatelessWidget {
+class _CopyDetailsBody extends StatefulWidget {
   const _CopyDetailsBody({required this.copy, required this.qrToken});
 
   final BookCopy copy;
   final String qrToken;
+
+  @override
+  State<_CopyDetailsBody> createState() => _CopyDetailsBodyState();
+}
+
+class _CopyDetailsBodyState extends State<_CopyDetailsBody> {
+  final _quantityController = TextEditingController(text: '1');
+  final _discountController = TextEditingController();
+  SaleDiscountType _discountType = SaleDiscountType.amount;
+  String? _quantityError;
+  String? _discountError;
+
+  BookCopy get copy => widget.copy;
+
+  @override
+  void dispose() {
+    _quantityController.dispose();
+    _discountController.dispose();
+    super.dispose();
+  }
+
+  int? _parseQuantity() {
+    final raw = _quantityController.text.trim();
+    final quantity = int.tryParse(raw);
+    if (quantity == null || quantity < 1 || quantity > 100) {
+      return null;
+    }
+    return quantity;
+  }
+
+  int? _parseDiscountValue() {
+    final raw = _discountController.text.trim();
+    if (_discountType == SaleDiscountType.amount) {
+      if (raw.isEmpty) {
+        return 0;
+      }
+      return parseMoneyToCents(raw);
+    }
+    return parsePercentToBasisPoints(raw);
+  }
+
+  void _confirmSale() {
+    final quantity = _parseQuantity();
+    final discountValue = _parseDiscountValue();
+    if (quantity == null || discountValue == null) {
+      setState(() {
+        _quantityError = quantity == null
+            ? 'Enter a whole number from 1 to 100.'
+            : null;
+        _discountError = discountValue == null
+            ? (_discountType == SaleDiscountType.amount
+                  ? 'Enter a discount amount like 2.00, or leave it blank.'
+                  : 'Enter a percentage from 0 to 100.')
+            : null;
+      });
+      return;
+    }
+    final token = Uri.encodeComponent(
+      (copy.qrToken != null && copy.qrToken!.isNotEmpty)
+          ? copy.qrToken!
+          : widget.qrToken,
+    );
+    final type = _discountType == SaleDiscountType.percent
+        ? 'percent'
+        : 'amount';
+    context.go(
+      '/sales/confirm?token=$token&quantity=$quantity&discountType=$type&discountValue=$discountValue',
+    );
+  }
 
   Color _statusColor() {
     return switch (copy.status) {
@@ -134,6 +205,91 @@ class _CopyDetailsBody extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 24),
+          TextField(
+            controller: _quantityController,
+            enabled: copy.isSellable,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: InputDecoration(
+              labelText: 'Quantity',
+              hintText: '1',
+              errorText: _quantityError,
+              helperText: 'Copies of this title to sell from library stock.',
+            ),
+            onChanged: (_) {
+              if (_quantityError != null) {
+                setState(() => _quantityError = null);
+              }
+            },
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Discount type',
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          RadioGroup<SaleDiscountType>(
+            groupValue: _discountType,
+            onChanged: copy.isSellable
+                ? (value) {
+                    if (value == null) {
+                      return;
+                    }
+                    setState(() {
+                      _discountType = value;
+                      _discountError = null;
+                    });
+                  }
+                : (_) {},
+            child: Column(
+              children: [
+                RadioListTile<SaleDiscountType>(
+                  value: SaleDiscountType.amount,
+                  enabled: copy.isSellable,
+                  title: const Text('Amount'),
+                  subtitle: const Text('Plain discount in currency'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+                RadioListTile<SaleDiscountType>(
+                  value: SaleDiscountType.percent,
+                  enabled: copy.isSellable,
+                  title: const Text('Percentage'),
+                  subtitle: const Text('Discount as a percent of the price'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+          ),
+          TextField(
+            controller: _discountController,
+            enabled: copy.isSellable,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+            ],
+            decoration: InputDecoration(
+              labelText: _discountType == SaleDiscountType.amount
+                  ? 'Discount amount'
+                  : 'Discount percentage',
+              hintText: _discountType == SaleDiscountType.amount
+                  ? '0.00'
+                  : '0',
+              suffixText: _discountType == SaleDiscountType.percent
+                  ? '%'
+                  : copy.edition?.currency,
+              errorText: _discountError,
+              helperText: _discountType == SaleDiscountType.amount
+                  ? 'Amount taken off each copy. Leave blank for no discount.'
+                  : 'Percent taken off each copy. Leave blank for no discount.',
+            ),
+            onChanged: (_) {
+              if (_discountError != null) {
+                setState(() => _discountError = null);
+              }
+            },
+          ),
+          const SizedBox(height: 24),
           if (!copy.isSellable)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -152,16 +308,7 @@ class _CopyDetailsBody extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           FilledButton(
-            onPressed: copy.isSellable
-                ? () {
-                    final token = Uri.encodeComponent(
-                      (copy.qrToken != null && copy.qrToken!.isNotEmpty)
-                          ? copy.qrToken!
-                          : qrToken,
-                    );
-                    context.go('/sales/confirm?token=$token');
-                  }
-                : null,
+            onPressed: copy.isSellable ? _confirmSale : null,
             child: Text(
               copy.isSellable ? 'Confirm sale' : 'Not available to sell',
             ),

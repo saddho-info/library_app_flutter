@@ -101,31 +101,57 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     await _openCopy(raw);
   }
 
-  Future<void> _openCopy(String token) async {
-    if (_handling || !mounted) {
-      return;
-    }
-    setState(() => _handling = true);
-    await HapticFeedback.mediumImpact();
-    if (_isCameraHost) {
-      unawaited(_controller.stop());
-    }
-
-    if (!mounted) {
-      return;
-    }
-    final location = Uri(
-      path: '/scan/copy',
-      queryParameters: {'token': token.trim()},
-    ).toString();
-    await context.push(location);
-
-    if (!mounted) {
+  void _releaseHandling() {
+    if (!mounted || !_handling) {
       return;
     }
     setState(() => _handling = false);
     if (_isCameraHost && !_showManualEntry) {
       unawaited(_controller.start());
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final isCurrent = ModalRoute.of(context)?.isCurrent ?? false;
+    if (!isCurrent || !_handling) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      if (ModalRoute.of(context)?.isCurrent ?? false) {
+        _releaseHandling();
+      }
+    });
+  }
+
+  Future<void> _openCopy(String token) async {
+    if (_handling || !mounted) {
+      return;
+    }
+    setState(() => _handling = true);
+    try {
+      try {
+        await HapticFeedback.mediumImpact();
+      } catch (_) {
+        // Desktop and some simulators have no haptic implementation.
+      }
+      if (_isCameraHost) {
+        unawaited(_controller.stop());
+      }
+      if (!mounted) {
+        return;
+      }
+      final location = Uri(
+        path: '/scan/copy',
+        queryParameters: {'token': token.trim()},
+      ).toString();
+      await context.push(location);
+    } finally {
+      _releaseHandling();
     }
   }
 
@@ -253,57 +279,68 @@ class _ManualEntryPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 12),
-          Icon(
-            Icons.qr_code_2,
-            size: 48,
-            color: AppColors.primary.withValues(alpha: 0.85),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Look up by token',
-            textAlign: TextAlign.center,
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Use this when the camera is unavailable (simulators) or you have a printed token.',
-            textAlign: TextAlign.center,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: AppColors.mutedForeground),
-          ),
-          const SizedBox(height: 24),
-          TextField(
-            controller: controller,
-            enabled: !busy,
-            textInputAction: TextInputAction.done,
-            decoration: const InputDecoration(
-              labelText: 'QR token',
-              hintText: 'Opaque token from the label',
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final minHeight = (constraints.maxHeight - 48).clamp(
+          0.0,
+          double.infinity,
+        );
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: minHeight),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Icon(
+                  Icons.qr_code_2,
+                  size: 48,
+                  color: AppColors.primary.withValues(alpha: 0.85),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Look up by token',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Use this when the camera is unavailable (simulators) or you have a printed token.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.mutedForeground,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                TextField(
+                  controller: controller,
+                  enabled: !busy,
+                  textInputAction: TextInputAction.done,
+                  decoration: const InputDecoration(
+                    labelText: 'QR token',
+                    hintText: 'Opaque token from the label',
+                  ),
+                  onSubmitted: (_) => onSubmit(),
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: busy ? null : onSubmit,
+                  child: busy
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Look up copy'),
+                ),
+              ],
             ),
-            onSubmitted: (_) => onSubmit(),
           ),
-          const SizedBox(height: 16),
-          FilledButton(
-            onPressed: busy ? null : onSubmit,
-            child: busy
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Look up copy'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

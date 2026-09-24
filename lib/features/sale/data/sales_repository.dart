@@ -24,6 +24,7 @@ class CreateSaleRequest {
     this.copyId,
     this.qrToken,
     this.unitPriceCents,
+    this.quantity = 1,
     this.notes,
   }) : assert(copyId != null || qrToken != null, 'Provide copyId or qrToken');
 
@@ -31,6 +32,7 @@ class CreateSaleRequest {
   final String? copyId;
   final String? qrToken;
   final int? unitPriceCents;
+  final int quantity;
   final String? notes;
 }
 
@@ -53,6 +55,7 @@ class ApiSalesRepository implements SalesRepository {
       if (request.qrToken != null) 'qrToken': request.qrToken,
       if (request.unitPriceCents != null)
         'unitPriceCents': request.unitPriceCents,
+      'quantity': request.quantity,
     };
 
     try {
@@ -145,6 +148,10 @@ class ApiSalesRepository implements SalesRepository {
 
     if (code == 'ALREADY_SOLD') {
       message = 'This copy has already been sold.';
+    } else if (code == 'INSUFFICIENT_STOCK') {
+      message = message.contains('copies of this title')
+          ? message
+          : 'Not enough copies of this title are in library stock.';
     } else if (code == 'INVALID_COPY') {
       message = message.contains('cannot be sold')
           ? message
